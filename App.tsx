@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { readSteps7d, requestPermissions, safeStringify } from './src/health/healthClient';
+import { clearStepData, readSteps7d, requestPermissions, safeStringify, writeStepData } from './src/health/healthClient';
 
 export default function App() {
   const [logs, setLogs] = useState<string[]>([]);
@@ -47,6 +47,36 @@ export default function App() {
     }
   };
 
+  const handleWriteSteps = async () => {
+    setLoading(true);
+    addLog('Writing sample step data...');
+    try {
+      const now = new Date();
+      const startTime = new Date(now.getTime() - 60 * 60 * 1000).toISOString(); // 1 hour ago
+      const endTime = now.toISOString();
+      
+      await writeStepData(1, startTime, endTime);
+      addLog('Successfully wrote 10 steps');
+    } catch (e: any) {
+      addLog(`Write Error: ${e.message || e}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearSteps = async () => {
+    setLoading(true);
+    addLog('Clearing step data (last 30 days)...');
+    try {
+      await clearStepData();
+      addLog('Successfully cleared step data');
+    } catch (e: any) {
+      addLog(`Clear Error: ${e.message || e}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
@@ -69,6 +99,22 @@ export default function App() {
           disabled={loading}
         >
           <Text style={styles.buttonText}>2. Read Steps (7d)</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.buttonTertiary, loading && styles.buttonDisabled]}
+          onPress={handleWriteSteps}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>3. Write Sample Steps</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.buttonQuaternary, loading && styles.buttonDisabled]}
+          onPress={handleClearSteps}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>4. Clear Step Data</Text>
         </TouchableOpacity>
       </View>
 
@@ -121,6 +167,12 @@ const styles = StyleSheet.create({
   },
   buttonSecondary: {
     backgroundColor: '#34C759',
+  },
+  buttonTertiary: {
+    backgroundColor: '#FF9500',
+  },
+  buttonQuaternary: {
+    backgroundColor: '#FF3B30',
   },
   buttonDisabled: {
     opacity: 0.5,
