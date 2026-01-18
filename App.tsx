@@ -9,7 +9,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { clearStepData, readSteps7d, requestPermissions, safeStringify, writeStepData } from './src/health/healthClient';
+import {
+  HealthLayer,
+  getDateRangeForLastDays,
+  getUserMessage,
+  normalizeError,
+  safeStringify,
+  sumDailySteps,
+} from './src/health/HealthLayer';
 
 export default function App() {
   const [logs, setLogs] = useState<string[]>([]);
@@ -22,12 +29,16 @@ export default function App() {
 
   const handleRequestPermissions = async () => {
     setLoading(true);
-    addLog('Requesting permissions...');
+    addLog('Connecting health...');
     try {
-      await requestPermissions();
-      addLog('Permission request completed.');
+      const result = await HealthLayer.ensurePermissions({
+        steps: { read: true },
+        bloodGlucose: { read: true },
+      });
+      addLog(`Permission status: ${result.status}`);
     } catch (e: any) {
-      addLog(`Permission Error: ${e.message || 'unknown error'}`);
+      const info = normalizeError(e);
+      addLog(`${info.code}: ${getUserMessage(info)}`);
     } finally {
       setLoading(false);
     }
@@ -37,41 +48,30 @@ export default function App() {
     setLoading(true);
     addLog('Reading steps (last 7 days)...');
     try {
-      const data = await readSteps7d();
-      addLog(`Result: ${data.summary}`);
-      addLog(`Raw: ${safeStringify(data.raw)}`);
+      const range = getDateRangeForLastDays(7);
+      const dailySteps = await HealthLayer.readDailySteps(range);
+      const total = sumDailySteps(dailySteps);
+      addLog(`Total steps: ${total}`);
+      addLog(`Daily: ${safeStringify(dailySteps)}`);
     } catch (e: any) {
-      addLog(`Read Error: ${e.message || e}`);
+      const info = normalizeError(e);
+      addLog(`${info.code}: ${getUserMessage(info)}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleWriteSteps = async () => {
+  const handleReadGlucose = async () => {
     setLoading(true);
-    addLog('Writing sample step data...');
+    addLog('Reading glucose (last 7 days)...');
     try {
-      const now = new Date();
-      const startTime = new Date(now.getTime() - 60 * 60 * 1000).toISOString(); // 1 hour ago
-      const endTime = now.toISOString();
-      
-      await writeStepData(1, startTime, endTime);
-      addLog('Successfully wrote 10 steps');
+      const range = getDateRangeForLastDays(7);
+      const samples = await HealthLayer.readGlucoseSamples(range);
+      addLog(`Glucose samples: ${samples.length}`);
+      addLog(`Samples: ${safeStringify(samples)}`);
     } catch (e: any) {
-      addLog(`Write Error: ${e.message || e}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleClearSteps = async () => {
-    setLoading(true);
-    addLog('Clearing step data (last 30 days)...');
-    try {
-      await clearStepData();
-      addLog('Successfully cleared step data');
-    } catch (e: any) {
-      addLog(`Clear Error: ${e.message || e}`);
+      const info = normalizeError(e);
+      addLog(`${info.code}: ${getUserMessage(info)}`);
     } finally {
       setLoading(false);
     }
@@ -90,7 +90,7 @@ export default function App() {
           onPress={handleRequestPermissions}
           disabled={loading}
         >
-          <Text style={styles.buttonText}>1. Request Permissions</Text>
+          <Text style={styles.buttonText}>Connect Health</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -98,23 +98,15 @@ export default function App() {
           onPress={handleReadSteps}
           disabled={loading}
         >
-          <Text style={styles.buttonText}>2. Read Steps (7d)</Text>
+          <Text style={styles.buttonText}>Read Steps (7d)</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.button, styles.buttonTertiary, loading && styles.buttonDisabled]}
-          onPress={handleWriteSteps}
+          onPress={handleReadGlucose}
           disabled={loading}
         >
-          <Text style={styles.buttonText}>3. Write Sample Steps</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.button, styles.buttonQuaternary, loading && styles.buttonDisabled]}
-          onPress={handleClearSteps}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>4. Clear Step Data</Text>
+          <Text style={styles.buttonText}>Read Glucose (7d)</Text>
         </TouchableOpacity>
       </View>
 
@@ -170,9 +162,6 @@ const styles = StyleSheet.create({
   },
   buttonTertiary: {
     backgroundColor: '#FF9500',
-  },
-  buttonQuaternary: {
-    backgroundColor: '#FF3B30',
   },
   buttonDisabled: {
     opacity: 0.5,
