@@ -5,7 +5,7 @@ export const safeStringify = (value: unknown, maxLength = 3000): string => {
       return `${text.slice(0, maxLength)}... (truncated)`;
     }
     return text;
-  } catch (_error) {
+  } catch {
     return "[Error stringifying object]";
   }
 };

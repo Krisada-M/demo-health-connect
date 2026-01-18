@@ -4,7 +4,8 @@ export interface LocalDayRange {
   end: Date;
 }
 
-const pad = (value: number): string => value.toString().padStart(2, "0");
+const pad = (value: number): string =>
+  value < 10 ? `0${value}` : value.toString();
 
 export const getLocalDateKey = (date: Date): string => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -14,11 +15,19 @@ const startOfLocalDay = (date: Date): Date =>
   new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
 
 const endOfLocalDay = (date: Date): Date =>
-  new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+  new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    23,
+    59,
+    59,
+    999,
+  );
 
 export const getLocalDayRanges = (
   startDate: Date,
-  endDate: Date
+  endDate: Date,
 ): LocalDayRange[] => {
   const ranges: LocalDayRange[] = [];
   let cursor = startOfLocalDay(startDate);
@@ -39,7 +48,7 @@ export const getLocalDayRanges = (
       0,
       0,
       0,
-      0
+      0,
     );
   }
 
@@ -56,7 +65,7 @@ export const getDateRangeForLastDays = (days: number, endDate = new Date()) => {
     0,
     0,
     0,
-    0
+    0,
   );
 
   return { startDate: start, endDate: end };

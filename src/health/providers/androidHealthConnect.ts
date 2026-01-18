@@ -2,35 +2,28 @@ import {
   initialize,
   readRecords,
   requestPermission,
+  type Permission,
+  type RecordType,
 } from "react-native-health-connect";
-import type { HealthProvider, DateRange } from "../HealthProvider";
+import type { DateRange, HealthProvider } from "../HealthProvider";
+import { HealthError, normalizeError } from "../models/common";
 import type { DailySteps } from "../models/steps";
-import type { GlucoseSample, GlucoseUnit } from "../models/glucose";
-import {
-  HealthError,
-  normalizeError,
-} from "../models/common";
 import {
   aggregatePermissionStatus,
   type PermissionRequest,
   type PermissionResponse,
   type PermissionStatus,
 } from "../permissions";
-import { getLocalDayRanges, getLocalDateKey } from "../utils/dateRange";
-import { toMgdl } from "../models/glucose";
+import { getLocalDateKey, getLocalDayRanges } from "../utils/dateRange";
 
 const buildPermissionResponse = (
   request: PermissionRequest,
-  state: PermissionStatus[keyof PermissionStatus]
+  state: PermissionStatus[keyof PermissionStatus],
 ): PermissionResponse => {
   const perMetric: PermissionStatus = {};
 
   if (request.steps?.read || request.steps?.write) {
     perMetric.steps = state;
-  }
-
-  if (request.bloodGlucose?.read || request.bloodGlucose?.write) {
-    perMetric.bloodGlucose = state;
   }
 
   return {
@@ -39,32 +32,25 @@ const buildPermissionResponse = (
   };
 };
 
-const normalizeUnit = (unit: unknown): GlucoseUnit => {
-  const text = String(unit ?? "mg/dL").toLowerCase();
-  return text.includes("mmol") ? "mmol/L" : "mg/dL";
-};
-
 const ensurePermissions = async (
-  request: PermissionRequest
+  request: PermissionRequest,
 ): Promise<PermissionResponse> => {
   const isInitialized = await initialize();
   if (!isInitialized) {
     return buildPermissionResponse(request, "not_available");
   }
 
-  const permissions: { accessType: "read" | "write"; recordType: string }[] = [];
+  const permissions: Permission[] = [];
+  const addPermission = (
+    accessType: "read" | "write",
+    recordType: RecordType,
+  ) => permissions.push({ accessType, recordType });
 
   if (request.steps?.read) {
-    permissions.push({ accessType: "read", recordType: "Steps" });
+    addPermission("read", "Steps");
   }
   if (request.steps?.write) {
-    permissions.push({ accessType: "write", recordType: "Steps" });
-  }
-  if (request.bloodGlucose?.read) {
-    permissions.push({ accessType: "read", recordType: "BloodGlucose" });
-  }
-  if (request.bloodGlucose?.write) {
-    permissions.push({ accessType: "write", recordType: "BloodGlucose" });
+    addPermission("write", "Steps");
   }
 
   if (permissions.length === 0) {
@@ -78,25 +64,20 @@ const ensurePermissions = async (
     const info = normalizeError(error);
     throw new HealthError(
       info.code === "UNKNOWN" ? "PERMISSION_DENIED" : info.code,
-      info.message
+      info.message,
     );
   }
 };
 
 const getPermissionStatus = async (
-  request: PermissionRequest
+  request: PermissionRequest,
 ): Promise<PermissionResponse> => {
   const isInitialized = await initialize();
   if (!isInitialized) {
     return buildPermissionResponse(request, "not_available");
   }
 
-  if (
-    !request.steps?.read &&
-    !request.steps?.write &&
-    !request.bloodGlucose?.read &&
-    !request.bloodGlucose?.write
-  ) {
+  if (!request.steps?.read && !request.steps?.write) {
     return buildPermissionResponse(request, "unknown");
   }
 
@@ -131,11 +112,11 @@ const readDailySteps = async (range: DateRange): Promise<DailySteps[]> => {
     throw new HealthError("NO_DATA", "No step data available");
   }
 
-  for (const record of result.records as Array<{
+  for (const record of result.records as {
     startTime?: string;
     endTime?: string;
     count?: number;
-  }>) {
+  }[]) {
     const time = record.startTime ?? record.endTime;
     if (!time) {
       continue;
@@ -153,62 +134,8 @@ const readDailySteps = async (range: DateRange): Promise<DailySteps[]> => {
   }));
 };
 
-const readGlucoseSamples = async (
-  range: DateRange
-): Promise<GlucoseSample[]> => {
-  const isInitialized = await initialize();
-  if (!isInitialized) {
-    throw new HealthError("NOT_AVAILABLE", "Health Connect not available");
-  }
-
-  let result: { records?: unknown[] };
-  try {
-    result = await readRecords("BloodGlucose", {
-      timeRangeFilter: {
-        operator: "between",
-        startTime: range.startDate.toISOString(),
-        endTime: range.endDate.toISOString(),
-      },
-    });
-  } catch (error) {
-    const info = normalizeError(error);
-    throw new HealthError(info.code, info.message);
-  }
-
-  if (!result.records || result.records.length === 0) {
-    throw new HealthError("NO_DATA", "No glucose data available");
-  }
-
-  return (result.records as Array<{
-    level?: number;
-    value?: number;
-    unit?: string;
-    time?: string;
-    startTime?: string;
-    endTime?: string;
-    metadata?: { id?: string; dataOrigin?: { packageName?: string } };
-  }>).map((record, index) => {
-    const originalValue = Number(record.level ?? record.value ?? 0);
-    const originalUnit = normalizeUnit(record.unit);
-    const time = record.time ?? record.startTime ?? record.endTime;
-    const measuredAtISO = time
-      ? new Date(time).toISOString()
-      : range.startDate.toISOString();
-
-    return {
-      id: record.metadata?.id ?? `${measuredAtISO}-${index}`,
-      valueMgdl: toMgdl(originalValue, originalUnit),
-      originalValue,
-      originalUnit,
-      measuredAtISO,
-      source: record.metadata?.dataOrigin?.packageName,
-    };
-  });
-};
-
 export const androidHealthConnectProvider: HealthProvider = {
   ensurePermissions,
   getPermissionStatus,
   readDailySteps,
-  readGlucoseSamples,
 };

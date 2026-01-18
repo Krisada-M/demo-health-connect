@@ -1,11 +1,10 @@
 import { Platform } from "react-native";
-import type { HealthProvider, DateRange } from "./HealthProvider";
-import type { PermissionRequest, PermissionResponse } from "./permissions";
-import type { DailySteps } from "./models/steps";
-import type { GlucoseSample } from "./models/glucose";
+import type { DateRange, HealthProvider } from "./HealthProvider";
 import { HealthError } from "./models/common";
-import { iosHealthKitProvider } from "./providers/iosHealthKit";
+import type { DailySteps } from "./models/steps";
+import type { PermissionRequest, PermissionResponse } from "./permissions";
 import { androidHealthConnectProvider } from "./providers/androidHealthConnect";
+import { iosHealthKitProvider } from "./providers/iosHealthKit";
 
 const getProvider = (): HealthProvider => {
   if (Platform.OS === "ios") {
@@ -19,13 +18,13 @@ const getProvider = (): HealthProvider => {
 };
 
 const ensurePermissions = async (
-  request: PermissionRequest
+  request: PermissionRequest,
 ): Promise<PermissionResponse> => {
   return getProvider().ensurePermissions(request);
 };
 
 const getPermissionStatus = async (
-  request: PermissionRequest
+  request: PermissionRequest,
 ): Promise<PermissionResponse> => {
   return getProvider().getPermissionStatus(request);
 };
@@ -34,28 +33,18 @@ const readDailySteps = async (range: DateRange): Promise<DailySteps[]> => {
   return getProvider().readDailySteps(range);
 };
 
-const readGlucoseSamples = async (
-  range: DateRange
-): Promise<GlucoseSample[]> => {
-  return getProvider().readGlucoseSamples(range);
-};
-
 export const HealthLayer = {
   ensurePermissions,
   getPermissionStatus,
   readDailySteps,
-  readGlucoseSamples,
 };
 
-export type { PermissionRequest, PermissionResponse } from "./permissions";
-export type { DailySteps } from "./models/steps";
-export type { GlucoseSample } from "./models/glucose";
 export type { DateRange } from "./HealthProvider";
-export {
-  HealthError,
-  normalizeError,
-  getUserMessage,
-} from "./models/common";
+export { getUserMessage, HealthError, normalizeError } from "./models/common";
+export type { GlucoseSample } from "./models/glucose";
 export { sumDailySteps } from "./models/steps";
+export type { DailySteps } from "./models/steps";
+export type { PermissionRequest, PermissionResponse } from "./permissions";
 export { getDateRangeForLastDays } from "./utils/dateRange";
 export { safeStringify } from "./utils/safeStringify";
+

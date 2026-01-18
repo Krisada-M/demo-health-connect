@@ -1,6 +1,5 @@
-import type { PermissionRequest, PermissionResponse } from "./permissions";
 import type { DailySteps } from "./models/steps";
-import type { GlucoseSample } from "./models/glucose";
+import type { PermissionRequest, PermissionResponse } from "./permissions";
 
 export interface DateRange {
   startDate: Date;
@@ -11,5 +10,4 @@ export interface HealthProvider {
   ensurePermissions(request: PermissionRequest): Promise<PermissionResponse>;
   getPermissionStatus(request: PermissionRequest): Promise<PermissionResponse>;
   readDailySteps(range: DateRange): Promise<DailySteps[]>;
-  readGlucoseSamples(range: DateRange): Promise<GlucoseSample[]>;
 }

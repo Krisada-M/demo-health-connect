@@ -1,4 +1,4 @@
-export type HealthMetric = "steps" | "bloodGlucose";
+export type HealthMetric = "steps";
 export type HealthAccess = "read" | "write";
 
 export interface MetricPermissionRequest {
@@ -8,7 +8,6 @@ export interface MetricPermissionRequest {
 
 export interface PermissionRequest {
   steps?: MetricPermissionRequest;
-  bloodGlucose?: MetricPermissionRequest;
 }
 
 export type PermissionState =
@@ -19,7 +18,6 @@ export type PermissionState =
 
 export interface PermissionStatus {
   steps?: PermissionState;
-  bloodGlucose?: PermissionState;
 }
 
 export interface PermissionResponse {
@@ -28,9 +26,18 @@ export interface PermissionResponse {
 }
 
 export const aggregatePermissionStatus = (
-  perMetric: PermissionStatus
+  perMetric: PermissionStatus,
 ): PermissionState => {
-  const states = Object.values(perMetric);
+  const states: PermissionState[] = [];
+  for (const key in perMetric) {
+    if (Object.prototype.hasOwnProperty.call(perMetric, key)) {
+      const value = perMetric[key as keyof PermissionStatus];
+
+      if (value) {
+        states.push(value);
+      }
+    }
+  }
   if (states.length === 0) {
     return "unknown";
   }

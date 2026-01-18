@@ -18,7 +18,6 @@ export interface StepData {
 export const requestPermissions = async (): Promise<void> => {
   await HealthLayer.ensurePermissions({
     steps: { read: true, write: true },
-    bloodGlucose: { read: true },
   });
 };
 
@@ -36,14 +35,14 @@ export const readSteps7d = async (): Promise<StepData> => {
 export const writeStepData = async (): Promise<void> => {
   throw new HealthError(
     "NOT_AVAILABLE",
-    "writeStepData is deprecated and not supported by HealthLayer"
+    "writeStepData is deprecated and not supported by HealthLayer",
   );
 };
 
 export const clearStepData = async (): Promise<void> => {
   throw new HealthError(
     "NOT_AVAILABLE",
-    "clearStepData is deprecated and not supported by HealthLayer"
+    "clearStepData is deprecated and not supported by HealthLayer",
   );
 };
 
