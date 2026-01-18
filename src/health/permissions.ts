@@ -1,4 +1,4 @@
-export type HealthMetric = "steps";
+export type HealthMetric = "steps" | "activeCaloriesBurned" | "distance";
 export type HealthAccess = "read" | "write";
 
 export interface MetricPermissionRequest {
@@ -8,7 +8,10 @@ export interface MetricPermissionRequest {
 
 export interface PermissionRequest {
   steps?: MetricPermissionRequest;
+  activeCaloriesBurned?: MetricPermissionRequest;
+  distance?: MetricPermissionRequest;
 }
+
 
 export type PermissionState =
   | "granted"
@@ -18,7 +21,10 @@ export type PermissionState =
 
 export interface PermissionStatus {
   steps?: PermissionState;
+  activeCaloriesBurned?: PermissionState;
+  distance?: PermissionState;
 }
+
 
 export interface PermissionResponse {
   status: PermissionState;

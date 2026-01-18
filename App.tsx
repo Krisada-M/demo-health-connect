@@ -15,7 +15,9 @@ import {
   getUserMessage,
   normalizeError,
   safeStringify,
+  sumActiveCalories,
   sumDailySteps,
+  sumDistance,
 } from './src/health/HealthLayer';
 
 export default function App() {
@@ -33,7 +35,8 @@ export default function App() {
     try {
       const result = await HealthLayer.ensurePermissions({
         steps: { read: true },
-        bloodGlucose: { read: true },
+        activeCaloriesBurned: { read: true },
+        distance: { read: true },
       });
       addLog(`Permission status: ${result.status}`);
     } catch (e: any) {
@@ -61,14 +64,42 @@ export default function App() {
     }
   };
 
-  const handleReadGlucose = async () => {
+  const handleReadActivity = async () => {
     setLoading(true);
-    addLog('Reading glucose (last 7 days)...');
+    addLog('Reading activity (last 7 days)...');
     try {
       const range = getDateRangeForLastDays(7);
-      const samples = await HealthLayer.readGlucoseSamples(range);
-      addLog(`Glucose samples: ${samples.length}`);
-      addLog(`Samples: ${safeStringify(samples)}`);
+      const daily = await HealthLayer.readDailyActivity(range);
+      const totalCalories = sumActiveCalories(daily);
+      const totalDistance = sumDistance(daily);
+      addLog(`Active calories (kcal): ${totalCalories}`);
+      addLog(`Distance (m): ${totalDistance}`);
+      addLog(`Daily: ${safeStringify(daily)}`);
+    } catch (e: any) {
+      const info = normalizeError(e);
+      addLog(`${info.code}: ${getUserMessage(info)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReadAll = async () => {
+    setLoading(true);
+    addLog('Reading steps + activity (last 7 days)...');
+    try {
+      const range = getDateRangeForLastDays(7);
+      const [dailySteps, dailyActivity] = await Promise.all([
+        HealthLayer.readDailySteps(range),
+        HealthLayer.readDailyActivity(range),
+      ]);
+      const totalSteps = sumDailySteps(dailySteps);
+      const totalCalories = sumActiveCalories(dailyActivity);
+      const totalDistance = sumDistance(dailyActivity);
+      addLog(`Total steps: ${totalSteps}`);
+      addLog(`Active calories (kcal): ${totalCalories}`);
+      addLog(`Distance (m): ${totalDistance}`);
+      addLog(`Steps daily: ${safeStringify(dailySteps)}`);
+      addLog(`Activity daily: ${safeStringify(dailyActivity)}`);
     } catch (e: any) {
       const info = normalizeError(e);
       addLog(`${info.code}: ${getUserMessage(info)}`);
@@ -103,10 +134,18 @@ export default function App() {
 
         <TouchableOpacity
           style={[styles.button, styles.buttonTertiary, loading && styles.buttonDisabled]}
-          onPress={handleReadGlucose}
+          onPress={handleReadActivity}
           disabled={loading}
         >
-          <Text style={styles.buttonText}>Read Glucose (7d)</Text>
+          <Text style={styles.buttonText}>Read Activity (7d)</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.buttonAll, loading && styles.buttonDisabled]}
+          onPress={handleReadAll}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>Read All (7d)</Text>
         </TouchableOpacity>
       </View>
 
@@ -162,6 +201,9 @@ const styles = StyleSheet.create({
   },
   buttonTertiary: {
     backgroundColor: '#FF9500',
+  },
+  buttonAll: {
+    backgroundColor: '#5856D6',
   },
   buttonDisabled: {
     opacity: 0.5,
