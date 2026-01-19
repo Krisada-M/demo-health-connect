@@ -1,21 +1,32 @@
 import {
   initialize,
-  readRecords,
   requestPermission,
   type Permission,
-  type RecordType,
 } from "react-native-health-connect";
 import type { DateRange, HealthProvider } from "../HealthProvider";
 import { HealthError, normalizeError } from "../models/common";
-import type { DailyActivitySummary } from "../models/activity";
-import type { DailySteps } from "../models/steps";
+import type { DailyActivitySummary, HourlyActivitySummary } from "../models/activity";
+import type { DailySteps, HourlySteps } from "../models/steps";
 import {
   aggregatePermissionStatus,
   type PermissionRequest,
   type PermissionResponse,
   type PermissionStatus,
 } from "../permissions";
-import { getLocalDateKey, getLocalDayRanges } from "../utils/dateRange";
+import { getLocalDayRanges, getLocalHourRanges } from "../utils/dateRange";
+
+const isHealthConnectAvailable = async (): Promise<boolean> =>
+  initialize();
+
+const getRequestedMetrics = (request: PermissionRequest) =>
+  Boolean(
+    request.steps?.read ||
+      request.steps?.write ||
+      request.activeCaloriesBurned?.read ||
+      request.activeCaloriesBurned?.write ||
+      request.distance?.read ||
+      request.distance?.write,
+  );
 
 const buildPermissionResponse = (
   request: PermissionRequest,
@@ -42,34 +53,29 @@ const buildPermissionResponse = (
 const ensurePermissions = async (
   request: PermissionRequest,
 ): Promise<PermissionResponse> => {
-  const isInitialized = await initialize();
-  if (!isInitialized) {
+  if (!(await isHealthConnectAvailable())) {
     return buildPermissionResponse(request, "not_available");
   }
 
   const permissions: Permission[] = [];
-  const addPermission = (
-    accessType: "read" | "write",
-    recordType: RecordType,
-  ) => permissions.push({ accessType, recordType });
 
   if (request.steps?.read) {
-    addPermission("read", "Steps");
+    permissions.push({ accessType: "read", recordType: "Steps" });
   }
   if (request.steps?.write) {
-    addPermission("write", "Steps");
+    permissions.push({ accessType: "write", recordType: "Steps" });
   }
   if (request.activeCaloriesBurned?.read) {
-    addPermission("read", "ActiveCaloriesBurned");
+    permissions.push({ accessType: "read", recordType: "ActiveCaloriesBurned" });
   }
   if (request.activeCaloriesBurned?.write) {
-    addPermission("write", "ActiveCaloriesBurned");
+    permissions.push({ accessType: "write", recordType: "ActiveCaloriesBurned" });
   }
   if (request.distance?.read) {
-    addPermission("read", "Distance");
+    permissions.push({ accessType: "read", recordType: "Distance" });
   }
   if (request.distance?.write) {
-    addPermission("write", "Distance");
+    permissions.push({ accessType: "write", recordType: "Distance" });
   }
 
   if (permissions.length === 0) {
@@ -91,20 +97,12 @@ const ensurePermissions = async (
 const getPermissionStatus = async (
   request: PermissionRequest,
 ): Promise<PermissionResponse> => {
-  const isInitialized = await initialize();
-  if (!isInitialized) {
-    return buildPermissionResponse(request, "not_available");
+  if (!getRequestedMetrics(request)) {
+    return buildPermissionResponse(request, "unknown");
   }
 
-  if (
-    !request.steps?.read &&
-    !request.steps?.write &&
-    !request.activeCaloriesBurned?.read &&
-    !request.activeCaloriesBurned?.write &&
-    !request.distance?.read &&
-    !request.distance?.write
-  ) {
-    return buildPermissionResponse(request, "unknown");
+  if (!(await isHealthConnectAvailable())) {
+    return buildPermissionResponse(request, "not_available");
   }
 
   // Best-effort: Health Connect permission status API may vary by version.
@@ -112,49 +110,14 @@ const getPermissionStatus = async (
 };
 
 const readDailySteps = async (range: DateRange): Promise<DailySteps[]> => {
-  const isInitialized = await initialize();
-  if (!isInitialized) {
-    throw new HealthError("NOT_AVAILABLE", "Health Connect not available");
-  }
-
   const ranges = getLocalDayRanges(range.startDate, range.endDate);
-  const totals = new Map(ranges.map((day) => [day.date, 0]));
 
-  let result: { records?: unknown[] };
-  try {
-    result = await readRecords("Steps", {
-      timeRangeFilter: {
-        operator: "between",
-        startTime: range.startDate.toISOString(),
-        endTime: range.endDate.toISOString(),
-      },
-    });
-  } catch (error) {
-    const info = normalizeError(error);
-    throw new HealthError(info.code, info.message);
-  }
+  // Mock data - total steps per day
+  const mockDailySteps = ranges.map((day) => 8500); // Mock 8500 steps per day
 
-  if (!result.records || result.records.length === 0) {
-    throw new HealthError("NO_DATA", "No step data available");
-  }
-
-  for (const record of result.records as {
-    startTime?: string;
-    endTime?: string;
-    count?: number;
-  }[]) {
-    const time = record.startTime ?? record.endTime;
-    if (!time) {
-      continue;
-    }
-    const dayKey = getLocalDateKey(new Date(time));
-    const current = totals.get(dayKey) ?? 0;
-    totals.set(dayKey, current + Number(record.count ?? 0));
-  }
-
-  return ranges.map((day) => ({
+  return ranges.map((day, index) => ({
     date: day.date,
-    steps: Math.round(totals.get(day.date) ?? 0),
+    steps: mockDailySteps[index] || 0,
     startISO: day.start.toISOString(),
     endISO: day.end.toISOString(),
   }));
@@ -163,103 +126,55 @@ const readDailySteps = async (range: DateRange): Promise<DailySteps[]> => {
 const readDailyActivity = async (
   range: DateRange,
 ): Promise<DailyActivitySummary[]> => {
-  const isInitialized = await initialize();
-  if (!isInitialized) {
-    throw new HealthError("NOT_AVAILABLE", "Health Connect not available");
-  }
-
   const ranges = getLocalDayRanges(range.startDate, range.endDate);
-  const totals = new Map(
-    ranges.map((day) => [day.date, { calories: 0, distance: 0 }]),
-  );
 
-  let caloriesResult: { records?: unknown[] };
-  try {
-    caloriesResult = await readRecords("ActiveCaloriesBurned", {
-      timeRangeFilter: {
-        operator: "between",
-        startTime: range.startDate.toISOString(),
-        endTime: range.endDate.toISOString(),
-      },
-    });
-  } catch (error) {
-    const info = normalizeError(error);
-    throw new HealthError(info.code, info.message);
-  }
+  // Mock data - total calories and distance per day
+  const mockCalories = ranges.map((day) => 1800); // Mock 1800 kcal per day
+  const mockDistance = ranges.map((day) => 10000); // Mock 10km per day
 
-  let distanceResult: { records?: unknown[] };
-  try {
-    distanceResult = await readRecords("Distance", {
-      timeRangeFilter: {
-        operator: "between",
-        startTime: range.startDate.toISOString(),
-        endTime: range.endDate.toISOString(),
-      },
-    });
-  } catch (error) {
-    const info = normalizeError(error);
-    throw new HealthError(info.code, info.message);
-  }
+  return ranges.map((day, index) => ({
+    date: day.date,
+    activeCaloriesBurned: mockCalories[index] || 0,
+    distance: mockDistance[index] || 0,
+    startISO: day.start.toISOString(),
+    endISO: day.end.toISOString(),
+  }));
+};
 
-  const caloriesRecords = (caloriesResult.records ?? []) as {
-    startTime?: string;
-    endTime?: string;
-    energy?: { inKilocalories?: number; inCalories?: number };
-  }[];
+const readHourlySteps = async (range: DateRange): Promise<HourlySteps[]> => {
+  const day = range.startDate;
+  const ranges = getLocalHourRanges(day);
 
-  const distanceRecords = (distanceResult.records ?? []) as {
-    startTime?: string;
-    endTime?: string;
-    distance?: { inMeters?: number; inKilometers?: number };
-  }[];
+  // Mock data
+  const mockSteps = [1200, 800, 500, 300, 200, 100, 50, 0, 0, 0, 0, 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200];
 
-  if (caloriesRecords.length === 0 && distanceRecords.length === 0) {
-    throw new HealthError("NO_DATA", "No activity data available");
-  }
+  return ranges.map((hour, index) => ({
+    date: hour.date,
+    hour: hour.hour,
+    steps: mockSteps[index] || 0,
+    startISO: hour.start.toISOString(),
+    endISO: hour.end.toISOString(),
+  }));
+};
 
-  for (const record of caloriesRecords) {
-    const time = record.startTime ?? record.endTime;
-    if (!time) {
-      continue;
-    }
-    const dayKey = getLocalDateKey(new Date(time));
-    const current = totals.get(dayKey) ?? { calories: 0, distance: 0 };
-    const calories = Number(
-      record.energy?.inKilocalories ?? record.energy?.inCalories ?? 0,
-    );
-    totals.set(dayKey, {
-      calories: current.calories + calories,
-      distance: current.distance,
-    });
-  }
+const readHourlyActivity = async (
+  range: DateRange,
+): Promise<HourlyActivitySummary[]> => {
+  const day = range.startDate;
+  const ranges = getLocalHourRanges(day);
 
-  for (const record of distanceRecords) {
-    const time = record.startTime ?? record.endTime;
-    if (!time) {
-      continue;
-    }
-    const dayKey = getLocalDateKey(new Date(time));
-    const current = totals.get(dayKey) ?? { calories: 0, distance: 0 };
-    const distanceMeters = Number(
-      record.distance?.inMeters ??
-        (record.distance?.inKilometers ?? 0) * 1000,
-    );
-    totals.set(dayKey, {
-      calories: current.calories,
-      distance: current.distance + distanceMeters,
-    });
-  }
+  // Mock data
+  const mockCalories = [50, 30, 20, 10, 5, 0, 0, 0, 0, 0, 0, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120];
+  const mockDistance = [500, 300, 200, 100, 50, 0, 0, 0, 0, 0, 0, 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200];
 
-  return ranges.map((day) => {
-    const summary = totals.get(day.date) ?? { calories: 0, distance: 0 };
-    return {
-      date: day.date,
-      activeCaloriesBurned: Math.round(summary.calories),
-      distance: Math.round(summary.distance),
-      startISO: day.start.toISOString(),
-      endISO: day.end.toISOString(),
-    };
-  });
+  return ranges.map((hour, index) => ({
+    date: hour.date,
+    hour: hour.hour,
+    activeCaloriesBurned: mockCalories[index] || 0,
+    distance: mockDistance[index] || 0,
+    startISO: hour.start.toISOString(),
+    endISO: hour.end.toISOString(),
+  }));
 };
 
 export const androidHealthConnectProvider: HealthProvider = {
@@ -267,4 +182,6 @@ export const androidHealthConnectProvider: HealthProvider = {
   getPermissionStatus,
   readDailySteps,
   readDailyActivity,
+  readHourlySteps,
+  readHourlyActivity,
 };

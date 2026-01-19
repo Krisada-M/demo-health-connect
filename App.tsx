@@ -18,6 +18,9 @@ import {
   sumActiveCalories,
   sumDailySteps,
   sumDistance,
+  sumHourlySteps,
+  sumHourlyActiveCalories,
+  sumHourlyDistance,
 } from './src/health/HealthLayer';
 
 export default function App() {
@@ -47,14 +50,19 @@ export default function App() {
     }
   };
 
-  const handleReadSteps = async () => {
+  const getTodayRange = () => {
+    const today = new Date();
+    return { startDate: today, endDate: today };
+  };
+
+  const handleReadTodaySteps = async () => {
     setLoading(true);
-    addLog('Reading steps (last 7 days)...');
+    addLog('Reading steps (today)...');
     try {
-      const range = getDateRangeForLastDays(7);
+      const range = getTodayRange();
       const dailySteps = await HealthLayer.readDailySteps(range);
       const total = sumDailySteps(dailySteps);
-      addLog(`Total steps: ${total}`);
+      addLog(`Steps today: ${total}`);
       addLog(`Daily: ${safeStringify(dailySteps)}`);
     } catch (e: any) {
       const info = normalizeError(e);
@@ -64,17 +72,15 @@ export default function App() {
     }
   };
 
-  const handleReadActivity = async () => {
+  const handleReadTodayCalories = async () => {
     setLoading(true);
-    addLog('Reading activity (last 7 days)...');
+    addLog('Reading active calories (today)...');
     try {
-      const range = getDateRangeForLastDays(7);
-      const daily = await HealthLayer.readDailyActivity(range);
-      const totalCalories = sumActiveCalories(daily);
-      const totalDistance = sumDistance(daily);
-      addLog(`Active calories (kcal): ${totalCalories}`);
-      addLog(`Distance (m): ${totalDistance}`);
-      addLog(`Daily: ${safeStringify(daily)}`);
+      const range = getTodayRange();
+      const dailyActivity = await HealthLayer.readDailyActivity(range);
+      const totalCalories = sumActiveCalories(dailyActivity);
+      addLog(`Active calories today (kcal): ${totalCalories}`);
+      addLog(`Daily: ${safeStringify(dailyActivity)}`);
     } catch (e: any) {
       const info = normalizeError(e);
       addLog(`${info.code}: ${getUserMessage(info)}`);
@@ -83,23 +89,41 @@ export default function App() {
     }
   };
 
-  const handleReadAll = async () => {
+  const handleReadTodayDistance = async () => {
     setLoading(true);
-    addLog('Reading steps + activity (last 7 days)...');
+    addLog('Reading distance (today)...');
     try {
-      const range = getDateRangeForLastDays(7);
-      const [dailySteps, dailyActivity] = await Promise.all([
-        HealthLayer.readDailySteps(range),
-        HealthLayer.readDailyActivity(range),
-      ]);
-      const totalSteps = sumDailySteps(dailySteps);
-      const totalCalories = sumActiveCalories(dailyActivity);
+      const range = getTodayRange();
+      const dailyActivity = await HealthLayer.readDailyActivity(range);
       const totalDistance = sumDistance(dailyActivity);
-      addLog(`Total steps: ${totalSteps}`);
-      addLog(`Active calories (kcal): ${totalCalories}`);
-      addLog(`Distance (m): ${totalDistance}`);
-      addLog(`Steps daily: ${safeStringify(dailySteps)}`);
-      addLog(`Activity daily: ${safeStringify(dailyActivity)}`);
+      addLog(`Distance today (m): ${totalDistance}`);
+      addLog(`Daily: ${safeStringify(dailyActivity)}`);
+    } catch (e: any) {
+      const info = normalizeError(e);
+      addLog(`${info.code}: ${getUserMessage(info)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReadHourlyToday = async () => {
+    setLoading(true);
+    addLog('Reading hourly data (today)...');
+    try {
+      const today = new Date();
+      const range = { startDate: today, endDate: today };
+      const [hourlySteps, hourlyActivity] = await Promise.all([
+        HealthLayer.readHourlySteps(range),
+        HealthLayer.readHourlyActivity(range),
+      ]);
+      const totalSteps = sumHourlySteps(hourlySteps);
+      const totalCalories = sumHourlyActiveCalories(hourlyActivity);
+      const totalDistance = sumHourlyDistance(hourlyActivity);
+      addLog(`Total steps today: ${totalSteps}`);
+      addLog(`Active calories (kcal) today: ${totalCalories}`);
+      addLog(`Distance (m) today: ${totalDistance}`);
+      addLog(`Steps hourly: ${safeStringify(hourlySteps)}`);
+      addLog(`Activity hourly: ${safeStringify(hourlyActivity)}`);
     } catch (e: any) {
       const info = normalizeError(e);
       addLog(`${info.code}: ${getUserMessage(info)}`);
@@ -126,26 +150,34 @@ export default function App() {
 
         <TouchableOpacity
           style={[styles.button, styles.buttonSecondary, loading && styles.buttonDisabled]}
-          onPress={handleReadSteps}
+          onPress={handleReadTodaySteps}
           disabled={loading}
         >
-          <Text style={styles.buttonText}>Read Steps (7d)</Text>
+          <Text style={styles.buttonText}>Read Steps (Today)</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.button, styles.buttonTertiary, loading && styles.buttonDisabled]}
-          onPress={handleReadActivity}
+          onPress={handleReadTodayCalories}
           disabled={loading}
         >
-          <Text style={styles.buttonText}>Read Activity (7d)</Text>
+          <Text style={styles.buttonText}>Read Calories (Today)</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.button, styles.buttonAll, loading && styles.buttonDisabled]}
-          onPress={handleReadAll}
+          onPress={handleReadTodayDistance}
           disabled={loading}
         >
-          <Text style={styles.buttonText}>Read All (7d)</Text>
+          <Text style={styles.buttonText}>Read Distance (Today)</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.buttonHourly, loading && styles.buttonDisabled]}
+          onPress={handleReadHourlyToday}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>Read Hourly (Today)</Text>
         </TouchableOpacity>
       </View>
 
@@ -204,6 +236,9 @@ const styles = StyleSheet.create({
   },
   buttonAll: {
     backgroundColor: '#5856D6',
+  },
+  buttonHourly: {
+    backgroundColor: '#AF52DE',
   },
   buttonDisabled: {
     opacity: 0.5,

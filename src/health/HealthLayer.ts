@@ -1,8 +1,8 @@
 import { Platform } from "react-native";
 import type { DateRange, HealthProvider } from "./HealthProvider";
 import { HealthError } from "./models/common";
-import type { DailyActivitySummary } from "./models/activity";
-import type { DailySteps } from "./models/steps";
+import type { DailyActivitySummary, HourlyActivitySummary } from "./models/activity";
+import type { DailySteps, HourlySteps } from "./models/steps";
 import type { PermissionRequest, PermissionResponse } from "./permissions";
 import { androidHealthConnectProvider } from "./providers/androidHealthConnect";
 import { iosHealthKitProvider } from "./providers/iosHealthKit";
@@ -40,19 +40,31 @@ const readDailyActivity = async (
   return getProvider().readDailyActivity(range);
 };
 
+const readHourlySteps = async (range: DateRange): Promise<HourlySteps[]> => {
+  return getProvider().readHourlySteps(range);
+};
+
+const readHourlyActivity = async (
+  range: DateRange,
+): Promise<HourlyActivitySummary[]> => {
+  return getProvider().readHourlyActivity(range);
+};
+
 export const HealthLayer = {
   ensurePermissions,
   getPermissionStatus,
   readDailySteps,
   readDailyActivity,
+  readHourlySteps,
+  readHourlyActivity,
 };
 
 export type { DateRange } from "./HealthProvider";
 export { getUserMessage, HealthError, normalizeError } from "./models/common";
-export { sumActiveCalories, sumDistance } from "./models/activity";
-export type { DailyActivitySummary } from "./models/activity";
-export { sumDailySteps } from "./models/steps";
-export type { DailySteps } from "./models/steps";
+export { sumActiveCalories, sumDistance, sumHourlyActiveCalories, sumHourlyDistance } from "./models/activity";
+export type { DailyActivitySummary, HourlyActivitySummary } from "./models/activity";
+export { sumDailySteps, sumHourlySteps } from "./models/steps";
+export type { DailySteps, HourlySteps } from "./models/steps";
 export type { PermissionRequest, PermissionResponse } from "./permissions";
 export { getDateRangeForLastDays } from "./utils/dateRange";
 export { safeStringify } from "./utils/safeStringify";

@@ -1,5 +1,5 @@
-import type { DailyActivitySummary } from "./models/activity";
-import type { DailySteps } from "./models/steps";
+import type { DailyActivitySummary, HourlyActivitySummary } from "./models/activity";
+import type { DailySteps, HourlySteps } from "./models/steps";
 import type { PermissionRequest, PermissionResponse } from "./permissions";
 
 export interface DateRange {
@@ -12,4 +12,6 @@ export interface HealthProvider {
   getPermissionStatus(request: PermissionRequest): Promise<PermissionResponse>;
   readDailySteps(range: DateRange): Promise<DailySteps[]>;
   readDailyActivity(range: DateRange): Promise<DailyActivitySummary[]>;
+  readHourlySteps(range: DateRange): Promise<HourlySteps[]>;
+  readHourlyActivity(range: DateRange): Promise<HourlyActivitySummary[]>;
 }

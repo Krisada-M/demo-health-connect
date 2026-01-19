@@ -4,6 +4,13 @@ export interface LocalDayRange {
   end: Date;
 }
 
+export interface LocalHourRange {
+  date: string;
+  hour: number;
+  start: Date;
+  end: Date;
+}
+
 const pad = (value: number): string =>
   value < 10 ? `0${value}` : value.toString();
 
@@ -50,6 +57,40 @@ export const getLocalDayRanges = (
       0,
       0,
     );
+  }
+
+  return ranges;
+};
+
+export const getLocalHourRanges = (day: Date): LocalHourRange[] => {
+  const ranges: LocalHourRange[] = [];
+  const dayKey = getLocalDateKey(day);
+
+  for (let hour = 0; hour < 24; hour++) {
+    const start = new Date(
+      day.getFullYear(),
+      day.getMonth(),
+      day.getDate(),
+      hour,
+      0,
+      0,
+      0,
+    );
+    const end = new Date(
+      day.getFullYear(),
+      day.getMonth(),
+      day.getDate(),
+      hour,
+      59,
+      59,
+      999,
+    );
+    ranges.push({
+      date: dayKey,
+      hour,
+      start,
+      end,
+    });
   }
 
   return ranges;

@@ -1,58 +1,64 @@
 {
-    "expo": {
-        "name": "MyApp",
-        "slug": "MyApp",
-        "version": "1.0.0",
-        "orientation": "portrait",
-        "icon": "./assets/images/icon.png",
-        "scheme": "myapp",
-        "userInterfaceStyle": "automatic",
-        "newArchEnabled": true,
-        "ios": {
-            "supportsTablet": true,
-            "bundleIdentifier": "com.anonymous.MyApp",
-            "infoPlist": {
-                "NSHealthShareUsageDescription": "We need access to your steps data to show your activity history.",
-                "NSHealthUpdateUsageDescription": "We need access to update your health data."
-            }
-        },
-        "android": {
-            "adaptiveIcon": {
-                "backgroundColor": "#E6F4FE",
-                "foregroundImage": "./assets/images/android-icon-foreground.png",
-                "backgroundImage": "./assets/images/android-icon-background.png",
-                "monochromeImage": "./assets/images/android-icon-monochrome.png"
-            },
-            "package": "com.anonymous.MyApp",
-            "permissions": [
-                "android.permission.health.READ_STEPS",
-                "android.permission.health.WRITE_STEPS",
-                "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
-                "android.permission.health.READ_DISTANCE"
-            ]
-        },
-        "web": {
-            "bundler": "metro",
-            "output": "single",
-            "favicon": "./assets/images/favicon.png"
-        },
-        "plugins": [
-            [
-                "expo-build-properties",
-                {
-                    "android": {
-                        "minSdkVersion": 26,
-                        "ndkVersion": "29.0.14206865"
-                    },
-                    "ios": {
-                        "deploymentTarget": "15.1"
-                    }
-                }
-            ],
-            "./plugins/withHealthConnect"
-        ],
-        "experiments": {
-            "typedRoutes": true
+  "expo": {
+    "name": "MyApp",
+    "slug": "health",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.MyApp",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "We need access to your steps data to show your activity history.",
+        "NSHealthUpdateUsageDescription": "We need access to update your health data."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "package": "com.anonymous.MyApp",
+      "permissions": [
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.WRITE_STEPS",
+        "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
+        "android.permission.health.READ_DISTANCE"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26,
+            "ndkVersion": "29.0.14206865"
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
         }
-    }
+      ],
+      "./plugins/withHealthConnect"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "e4fdf08a-fe32-4328-93de-79ee545bed93"
+      }
+    },
+    "owner": "krisada"
+  }
 }
